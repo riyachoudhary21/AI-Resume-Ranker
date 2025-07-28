@@ -2,9 +2,15 @@
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
 ![Streamlit](https://img.shields.io/badge/Streamlit-Framework-red)
-
+[![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)]
 
 ---
+
+## Live Demo
+[**Click here to try it out**](https://ai-resume-ranker-8146.streamlit.app/)
+
+[![Open in Streamlit](https://img.shields.io/badge/Streamlit-Open_App-FF4B4B?style=for-the-badge&logo=streamlit)](https://ai-resume-ranker-8146.streamlit.app/)
+
 
 ## Project Overview
 This is an **AI-powered resume ranking application** designed to help recruiters and hiring managers quickly shortlist candidates.  
