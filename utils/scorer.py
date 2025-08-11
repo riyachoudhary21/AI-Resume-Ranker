@@ -5,7 +5,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 # Initialize model Once
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# --- MERN/MEAN Stack expansions ---
 SKILL_EXPANSIONS = {
     "mern stack": ["MongoDB", "Express.js", "React.js", "Node.js", "JavaScript", "REST API", "HTML", "CSS", "Git"],
     "mean stack": ["MongoDB", "Express.js", "Angular", "Node.js", "JavaScript", "REST API", "HTML", "CSS", "Git"],
@@ -13,15 +12,15 @@ SKILL_EXPANSIONS = {
 }
 
 def expand_jd(jd_text):
-    jd_lower = jd_text.lower()
-    expanded_text = jd_text
+    jd_lower =jd_text.lower()
+    expanded_text =jd_text
     for keyword, skills in SKILL_EXPANSIONS.items():
         if re.search(rf"\b{keyword}\b", jd_lower):
             expanded_text += "\nRequired Skills: " + ", ".join(skills)
     return expanded_text
 
 # Domain keyword mapping
-JOB_KEYWORDS = {
+JOB_KEYWORDS ={
     "ML_AI": {
         'pytorch': 0.15, 'tensorflow': 0.15, 'keras': 0.1,
         'huggingface': 0.1, 'spark': 0.1, 'scikit-learn': 0.1,
@@ -36,7 +35,7 @@ JOB_KEYWORDS = {
         'express': 0.1, 'angular': 0.1, 'next.js': 0.1, 'tailwind': 0.05,
         'full stack': 0.1, 'api development': 0.1
     },
-    "FULLSTACK": {
+    "FULLSTACK":{
         'react': 0.15, 'node.js': 0.15, 'typescript': 0.15,
         'express': 0.15, 'mongodb': 0.1, 'postgresql': 0.1,
         'graphql': 0.1, 'docker': 0.1
@@ -63,7 +62,7 @@ JOB_KEYWORDS = {
 }
 
 def detect_domain(jd_text: str):
-    text = jd_text.lower()
+    text =jd_text.lower()
     if any(word in text for word in ["tensorflow", "pytorch", "machine learning", "deep learning", "llm"]):
         return "ML_AI"
     if any(word in text for word in ["react", "angular", "node.js", "next.js"]):
@@ -82,14 +81,14 @@ def detect_domain(jd_text: str):
 
 def calculate_score(jd_text, resume_text):
     try:
-        # --- NEW STEP: Expand JD if it has known stack keywords ---
-        jd_text = expand_jd(jd_text)
+        # Expand JD
+        jd_text= expand_jd(jd_text)
 
-        domain = detect_domain(jd_text)
-        keyword_boost = JOB_KEYWORDS.get(domain, {})
+        domain= detect_domain(jd_text)
+        keyword_boost =JOB_KEYWORDS.get(domain, {})
 
-        headerized_text = "\n" + resume_text.upper() + "\n"
-        sections = {
+        headerized_text ="\n" + resume_text.upper() + "\n"
+        sections= {
             'skills': extract_section(headerized_text, 'SKILLS|TECHNICAL SKILLS|TECH STACK'),
             'experience': extract_section(headerized_text, 'EXPERIENCE|WORK EXPERIENCE|EMPLOYMENT|WORK HISTORY'),
             'projects': extract_section(headerized_text, 'PROJECTS|PERSONAL PROJECTS|KEY PROJECTS|RESEARCH PROJECTS'),
@@ -97,26 +96,26 @@ def calculate_score(jd_text, resume_text):
         }
 
         jd_emb = model.encode([jd_text])
-        weights = {'skills': 0.5, 'experience': 0.3, 'projects': 0.15, 'education': 0.05}
+        weights ={'skills': 0.5, 'experience': 0.3, 'projects': 0.15, 'education': 0.05}
 
-        total_score = 0
+        total_score =0
         for section, text in sections.items():
             if text:
-                processed = preprocess_technical(text)
+                processed =preprocess_technical(text)
                 emb = model.encode([processed])
                 similarity = abs(cosine_similarity(jd_emb, emb)[0][0])
                 total_score += similarity * weights[section]
 
         resume_lower = resume_text.lower()
         boost = sum(score * len(re.findall(rf'\b{term}\b', resume_lower)) for term, score in keyword_boost.items())
-        boost = boost / max(len(resume_lower.split()), 50)
+        boost =boost / max(len(resume_lower.split()), 50)
 
-        raw_score = total_score + boost
-        final_score = raw_score * 92 + 8  # 0 -> 8%, ~1 -> 100%
+        raw_score= total_score + boost
+        final_score =raw_score * 92 + 8  # 0 -> 8%, ~1 -> 100%
 
-        spread_factor = 1 + (final_score / 100) * 0.05  
-        final_score = final_score * spread_factor
-        final_score = min(final_score, 100)
+        spread_factor= 1 + (final_score / 100) * 0.05  
+        final_score =final_score * spread_factor
+        final_score =min(final_score, 100)
 
         return round(final_score, 1)
 
@@ -134,9 +133,9 @@ def extract_section(text, pattern):
         return ""
 
 def preprocess_technical(text):
-    keep_terms = {'nlp', 'llm', 'gan', 'bert', 'gpt', 'transformer',
+    keep_terms ={'nlp', 'llm', 'gan', 'bert', 'gpt', 'transformer',
                   'pytorch', 'tensorflow', 'cnn', 'rnn', 'huggingface'}
-    text = text.lower()
+    text= text.lower()
     for term in keep_terms:
-        text = re.sub(rf'\b{term}\b', term.upper(), text)
+        text =re.sub(rf'\b{term}\b', term.upper(), text)
     return text
