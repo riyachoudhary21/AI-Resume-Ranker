@@ -3,15 +3,30 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # Initialize model Once
-model =SentenceTransformer('all-MiniLM-L6-v2')
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# Domain keyword
+# --- MERN/MEAN Stack expansions ---
+SKILL_EXPANSIONS = {
+    "mern stack": ["MongoDB", "Express.js", "React.js", "Node.js", "JavaScript", "REST API", "HTML", "CSS", "Git"],
+    "mean stack": ["MongoDB", "Express.js", "Angular", "Node.js", "JavaScript", "REST API", "HTML", "CSS", "Git"],
+    "full stack": ["HTML", "CSS", "JavaScript", "React.js", "Node.js", "Express.js", "MongoDB", "SQL", "Git"]
+}
+
+def expand_jd(jd_text):
+    jd_lower = jd_text.lower()
+    expanded_text = jd_text
+    for keyword, skills in SKILL_EXPANSIONS.items():
+        if re.search(rf"\b{keyword}\b", jd_lower):
+            expanded_text += "\nRequired Skills: " + ", ".join(skills)
+    return expanded_text
+
+# Domain keyword mapping
 JOB_KEYWORDS = {
     "ML_AI": {
         'pytorch': 0.15, 'tensorflow': 0.15, 'keras': 0.1,
         'huggingface': 0.1, 'spark': 0.1, 'scikit-learn': 0.1,
-        'natural language processing':0.25, 'computer vision': 0.25,
-        'llm': 0.4, 'transformer':0.15, 'generative ai': 0.3,
+        'natural language processing': 0.25, 'computer vision': 0.25,
+        'llm': 0.4, 'transformer': 0.15, 'generative ai': 0.3,
         'deep learning': 0.2, 'neural network': 0.15,
         'end to end': 0.1, 'deployed': 0.15, 'model accuracy': 0.1,
         'real-time': 0.1, 'fine-tuning': 0.2, 'hyperparameter tuning': 0.1
@@ -22,13 +37,13 @@ JOB_KEYWORDS = {
         'full stack': 0.1, 'api development': 0.1
     },
     "FULLSTACK": {
-        'react': 0.15, 'node.js':0.15, 'typescript': 0.15,
+        'react': 0.15, 'node.js': 0.15, 'typescript': 0.15,
         'express': 0.15, 'mongodb': 0.1, 'postgresql': 0.1,
-        'graphql':0.1, 'docker': 0.1
+        'graphql': 0.1, 'docker': 0.1
     },
     "SOFTWARE_DEV": {
-        'java': 0.2, 'c++':0.2, 'python': 0.15, 'spring boot': 0.15,
-        'microservices': 0.1, 'rest api': 0.1, 'git':0.05
+        'java': 0.2, 'c++': 0.2, 'python': 0.15, 'spring boot': 0.15,
+        'microservices': 0.1, 'rest api': 0.1, 'git': 0.05
     },
     "DATA_ENGINEER": {
         'spark': 0.2, 'hadoop': 0.2, 'kafka': 0.15,
@@ -48,7 +63,7 @@ JOB_KEYWORDS = {
 }
 
 def detect_domain(jd_text: str):
-    text =jd_text.lower()
+    text = jd_text.lower()
     if any(word in text for word in ["tensorflow", "pytorch", "machine learning", "deep learning", "llm"]):
         return "ML_AI"
     if any(word in text for word in ["react", "angular", "node.js", "next.js"]):
@@ -67,41 +82,43 @@ def detect_domain(jd_text: str):
 
 def calculate_score(jd_text, resume_text):
     try:
-        domain= detect_domain(jd_text)
-        keyword_boost= JOB_KEYWORDS.get(domain, {})
+        # --- NEW STEP: Expand JD if it has known stack keywords ---
+        jd_text = expand_jd(jd_text)
 
-        headerized_text= "\n" + resume_text.upper() + "\n"
-        sections ={
+        domain = detect_domain(jd_text)
+        keyword_boost = JOB_KEYWORDS.get(domain, {})
+
+        headerized_text = "\n" + resume_text.upper() + "\n"
+        sections = {
             'skills': extract_section(headerized_text, 'SKILLS|TECHNICAL SKILLS|TECH STACK'),
             'experience': extract_section(headerized_text, 'EXPERIENCE|WORK EXPERIENCE|EMPLOYMENT|WORK HISTORY'),
             'projects': extract_section(headerized_text, 'PROJECTS|PERSONAL PROJECTS|KEY PROJECTS|RESEARCH PROJECTS'),
             'education': extract_section(headerized_text, 'EDUCATION|ACADEMIC BACKGROUND')
         }
 
-        jd_emb= model.encode([jd_text])
-        weights ={'skills': 0.5, 'experience': 0.3, 'projects': 0.15, 'education': 0.05}
+        jd_emb = model.encode([jd_text])
+        weights = {'skills': 0.5, 'experience': 0.3, 'projects': 0.15, 'education': 0.05}
 
-        total_score =0
+        total_score = 0
         for section, text in sections.items():
             if text:
-                processed =preprocess_technical(text)
+                processed = preprocess_technical(text)
                 emb = model.encode([processed])
-                similarity= abs(cosine_similarity(jd_emb, emb)[0][0])
+                similarity = abs(cosine_similarity(jd_emb, emb)[0][0])
                 total_score += similarity * weights[section]
 
-        resume_lower =resume_text.lower()
-        boost= sum(score * len(re.findall(rf'\b{term}\b', resume_lower)) for term, score in keyword_boost.items())
-        boost =boost / max(len(resume_lower.split()), 50)
+        resume_lower = resume_text.lower()
+        boost = sum(score * len(re.findall(rf'\b{term}\b', resume_lower)) for term, score in keyword_boost.items())
+        boost = boost / max(len(resume_lower.split()), 50)
 
-        raw_score= total_score + boost
-        final_score= raw_score * 92 + 8  # 0 -> 8%, ~1 -> 100%
-        
-        # Normalize small differences to avoid ties
-        spread_factor = 1 + (final_score / 100) * 0.05  # 0% → no change, 100% → +5%
-        final_score= final_score * spread_factor
-        final_score =min(final_score, 100)
+        raw_score = total_score + boost
+        final_score = raw_score * 92 + 8  # 0 -> 8%, ~1 -> 100%
 
-        return round(min(final_score, 100), 1)   
+        spread_factor = 1 + (final_score / 100) * 0.05  
+        final_score = final_score * spread_factor
+        final_score = min(final_score, 100)
+
+        return round(final_score, 1)
 
     except Exception as e:
         print(f"ERROR in scoring: {str(e)}")
@@ -109,7 +126,7 @@ def calculate_score(jd_text, resume_text):
 
 def extract_section(text, pattern):
     try:
-        match =re.search(fr'\n{pattern}[^a-zA-Z0-9]*(.*?)(?=\n[A-Z]{{3,}}|\Z)', text, re.DOTALL | re.IGNORECASE)
+        match = re.search(fr'\n{pattern}[^a-zA-Z0-9]*(.*?)(?=\n[A-Z]{{3,}}|\Z)', text, re.DOTALL | re.IGNORECASE)
         if match:
             return re.sub(r'\n\s*[\n\s]+', '\n• ', match.group(1).strip())
         return ""
@@ -117,9 +134,9 @@ def extract_section(text, pattern):
         return ""
 
 def preprocess_technical(text):
-    keep_terms ={'nlp', 'llm', 'gan', 'bert', 'gpt', 'transformer',
+    keep_terms = {'nlp', 'llm', 'gan', 'bert', 'gpt', 'transformer',
                   'pytorch', 'tensorflow', 'cnn', 'rnn', 'huggingface'}
-    text= text.lower()
+    text = text.lower()
     for term in keep_terms:
-        text= re.sub(rf'\b{term}\b', term.upper(), text)
+        text = re.sub(rf'\b{term}\b', term.upper(), text)
     return text
